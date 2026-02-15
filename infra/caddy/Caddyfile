@@ -1,0 +1,22 @@
+{
+  admin off
+  log {
+    output stdout
+    format console
+  }
+}
+
+:80 {
+  @api {
+    path /api/*
+    path /health
+  }
+  
+  handle @api {
+    reverse_proxy backend:3001
+  }
+  
+  handle {
+    reverse_proxy frontend:3000
+  }
+}

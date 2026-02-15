@@ -1,0 +1,114 @@
+version: "3.8"
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://stock:${DB_PASSWORD}@postgres:5432/stock_db
+  REDIS_URL: redis://redis:6379/0
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: stock-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3001}
+    depends_on:
+      - backend
+    networks:
+      - stock-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: stock-backend
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - stock-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: stock-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stock
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: stock_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stock -d stock_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stock-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: stock-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - stock-network
+
+  crawler:
+    build:
+      context: ./crawler
+      dockerfile: Dockerfile
+    container_name: stock-crawler
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    command: celery -A tasks worker -l info --beat
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - stock-network
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: stock-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - stock-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: stock-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - stock-network
+
+volumes:
+  pg_data:
+  redis_data:
+  caddy_data:
+
+networks:
+  stock-network:
+    driver: bridge
