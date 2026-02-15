@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, BigInteger, Numeric, Date, Boolean, Text, CheckConstraint
+from sqlalchemy import Column, Integer, String, BigInteger, Numeric, Date, Boolean, Text, ForeignKey, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -23,7 +23,7 @@ class FinancialReport(Base):
     __tablename__ = "financial_reports"
     
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     report_date = Column(Date, nullable=False)
     year = Column(Integer, nullable=False)
     season = Column(Integer, nullable=False)
@@ -64,7 +64,7 @@ class StockPrice(Base):
     __tablename__ = "stock_prices"
     
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)
     open = Column(Numeric(10, 2))
     high = Column(Numeric(10, 2))
@@ -81,7 +81,7 @@ class Indicator(Base):
     __tablename__ = "indicators"
     
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     report_date = Column(Date, nullable=False)
     year = Column(Integer, nullable=False)
     season = Column(Integer, nullable=False)
@@ -121,7 +121,7 @@ class TrendAnalysis(Base):
     __tablename__ = "trend_analysis"
     
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
     calculation_date = Column(Date, nullable=False)
     period_days = Column(Integer, default=1278)
     trend_line = Column(Numeric(10, 4))
