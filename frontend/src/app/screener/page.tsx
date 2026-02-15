@@ -2,64 +2,37 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { screenerApi, metaApi } from '@/lib/api';
+import axios from 'axios';
 
 interface FilterState {
-  roe_min: string;
-  roe_max: string;
-  pe_min: string;
   pe_max: string;
-  current_ratio_min: string;
-  f_score_min: string;
-  cbs_score_min: string;
+  pb_max: string;
   signal: string[];
-  industry: string[];
 }
 
-const defaultFilters: FilterState = {
-  roe_min: '',
-  roe_max: '',
-  pe_min: '',
-  pe_max: '',
-  current_ratio_min: '',
-  f_score_min: '',
-  cbs_score_min: '',
-  signal: [],
-  industry: [],
-};
-
 export default function ScreenerPage() {
-  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [filters, setFilters] = useState<FilterState>({
+    pe_max: '',
+    pb_max: '',
+    signal: [],
+  });
   const [results, setResults] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [industries, setIndustries] = useState<any[]>([]);
-  const [page, setPage] = useState(1);
+  const [searched, setSearched] = useState(false);
 
-  useEffect(() => {
-    metaApi.getIndustries().then(res => setIndustries(res.data));
-  }, []);
-
-  const handleFilterChange = (key: keyof FilterState, value: string | string[]) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
+  const signals = ['低估', '低價', '中等', '過熱', '觀望'];
 
   const handleSearch = async () => {
     setLoading(true);
-    setPage(1);
+    setSearched(true);
     try {
       const filterPayload: any = {};
-      if (filters.roe_min) filterPayload.roe_min = parseFloat(filters.roe_min);
-      if (filters.roe_max) filterPayload.roe_max = parseFloat(filters.roe_max);
-      if (filters.pe_min) filterPayload.pe_min = parseFloat(filters.pe_min);
       if (filters.pe_max) filterPayload.pe_max = parseFloat(filters.pe_max);
-      if (filters.current_ratio_min) filterPayload.current_ratio_min = parseFloat(filters.current_ratio_min);
-      if (filters.f_score_min) filterPayload.f_score_min = parseInt(filters.f_score_min);
-      if (filters.cbs_score_min) filterPayload.cbs_score_min = parseInt(filters.cbs_score_min);
+      if (filters.pb_max) filterPayload.pb_max = parseFloat(filters.pb_max);
       if (filters.signal.length > 0) filterPayload.signal = filters.signal;
-      if (filters.industry.length > 0) filterPayload.industry = filters.industry;
 
-      const res = await screenerApi.screen(filterPayload, 1, 50);
+      const res = await axios.post('/api/screener?page=1&page_size=100', filterPayload);
       setResults(res.data.companies);
       setTotal(res.data.total);
     } catch (error) {
@@ -69,166 +42,78 @@ export default function ScreenerPage() {
     }
   };
 
-  const handleReset = () => {
-    setFilters(defaultFilters);
-    setResults([]);
-    setTotal(0);
-  };
-
-  const toggleArrayFilter = (key: 'signal' | 'industry', value: string) => {
-    setFilters(prev => {
-      const current = prev[key];
-      const updated = current.includes(value)
-        ? current.filter(v => v !== value)
-        : [...current, value];
-      return { ...prev, [key]: updated };
-    });
+  const toggleSignal = (signal: string) => {
+    setFilters(prev => ({
+      ...prev,
+      signal: prev.signal.includes(signal)
+        ? prev.signal.filter(s => s !== signal)
+        : [...prev.signal, signal]
+    }));
   };
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">股票篩選</h1>
+      <h1 className="text-2xl font-bold text-gray-100">股票篩選</h1>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ROE 最小值 (%)
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              本益比上限
             </label>
             <input
               type="number"
               step="0.1"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-              placeholder="例: 15"
-              value={filters.roe_min}
-              onChange={(e) => handleFilterChange('roe_min', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ROE 最大值 (%)
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-              placeholder="例: 30"
-              value={filters.roe_max}
-              onChange={(e) => handleFilterChange('roe_max', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              本益比最小值
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-              placeholder="例: 5"
-              value={filters.pe_min}
-              onChange={(e) => handleFilterChange('pe_min', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              本益比最大值
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               placeholder="例: 20"
               value={filters.pe_max}
-              onChange={(e) => handleFilterChange('pe_max', e.target.value)}
+              onChange={(e) => setFilters(prev => ({ ...prev, pe_max: e.target.value }))}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              流動比率最小值
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              股價淨值比上限
             </label>
             <input
               type="number"
               step="0.1"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               placeholder="例: 1.5"
-              value={filters.current_ratio_min}
-              onChange={(e) => handleFilterChange('current_ratio_min', e.target.value)}
+              value={filters.pb_max}
+              onChange={(e) => setFilters(prev => ({ ...prev, pb_max: e.target.value }))}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              F-Score 最小值 (0-9)
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              快速篩選
             </label>
-            <input
-              type="number"
-              min="0"
-              max="9"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-              placeholder="例: 7"
-              value={filters.f_score_min}
-              onChange={(e) => handleFilterChange('f_score_min', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              財報分數最小值 (0-100)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
-              placeholder="例: 70"
-              value={filters.cbs_score_min}
-              onChange={(e) => handleFilterChange('cbs_score_min', e.target.value)}
-            />
+            <button
+              onClick={() => setFilters({ pe_max: '15', pb_max: '1.5', signal: ['低估', '低價'] })}
+              className="w-full px-3 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition-colors"
+            >
+              價值投資組合
+            </button>
           </div>
         </div>
 
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            燈號
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            信號
           </label>
           <div className="flex flex-wrap gap-2">
-            {['低估', '低價', '中等', '過熱', '觀望'].map((signal) => (
+            {signals.map((signal) => (
               <button
                 key={signal}
-                onClick={() => toggleArrayFilter('signal', signal)}
-                className={`px-3 py-1 rounded-full text-sm ${
+                onClick={() => toggleSignal(signal)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   filters.signal.includes(signal)
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
                 {signal}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            產業
-          </label>
-          <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-            {industries.slice(0, 20).map((ind: any) => (
-              <button
-                key={ind.name}
-                onClick={() => toggleArrayFilter('industry', ind.name)}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  filters.industry.includes(ind.name)
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {ind.name}
               </button>
             ))}
           </div>
@@ -238,91 +123,88 @@ export default function ScreenerPage() {
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 transition-colors"
           >
             {loading ? '搜尋中...' : '搜尋'}
           </button>
           <button
-            onClick={handleReset}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            onClick={() => { setFilters({ pe_max: '', pb_max: '', signal: [] }); setResults([]); setTotal(0); setSearched(false); }}
+            className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
           >
             重置
           </button>
         </div>
       </div>
 
-      {results.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-4 py-3 bg-gray-50 border-b">
-            <span className="text-gray-600">找到 {total} 檔股票</span>
+      {searched && (
+        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+          <div className="px-4 py-3 bg-gray-900 border-b border-gray-700">
+            <span className="text-gray-300">找到 <span className="text-cyan-400 font-semibold">{total}</span> 檔股票</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">代碼</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">名稱</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">產業</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">ROE</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">本益比</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">流動比率</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">F-Score</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">財報分數</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">燈號</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {results.map((stock: any) => (
-                  <tr key={stock.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/stocks/${stock.stock_code}`}
-                        className="text-primary-600 hover:underline font-medium"
-                      >
-                        {stock.stock_code}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">{stock.name}</td>
-                    <td className="px-4 py-3">{stock.industry || '-'}</td>
-                    <td className="px-4 py-3 text-right">
-                      {stock.latest_indicators?.roe?.toFixed(2) || '-'}%
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {stock.latest_indicators?.pe_ttm?.toFixed(2) || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {stock.latest_indicators?.current_ratio?.toFixed(2) || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {stock.latest_indicators?.f_score || '-'}/9
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`px-2 py-1 rounded text-white text-sm ${
-                        (stock.latest_indicators?.cbs_score || 0) >= 80 ? 'bg-green-500' :
-                        (stock.latest_indicators?.cbs_score || 0) >= 60 ? 'bg-blue-500' :
-                        'bg-gray-500'
-                      }`}>
-                        {stock.latest_indicators?.cbs_score || '-'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {stock.latest_indicators?.signal && (
-                        <span className={`px-2 py-1 rounded text-white text-xs ${
-                          stock.latest_indicators.signal === '低估' ? 'bg-green-500' :
-                          stock.latest_indicators.signal === '低價' ? 'bg-blue-500' :
-                          stock.latest_indicators.signal === '中等' ? 'bg-yellow-500' :
-                          stock.latest_indicators.signal === '過熱' ? 'bg-red-500' :
-                          'bg-gray-500'
-                        }`}>
-                          {stock.latest_indicators.signal}
-                        </span>
-                      )}
-                    </td>
+          
+          {results.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-900">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">代碼</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">名稱</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-400">市場</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-400">本益比</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-400">淨值比</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-400">殖利率</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-400">信號</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {results.map((stock: any) => (
+                    <tr key={stock.id} className="hover:bg-gray-700/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <Link href={`/stocks/${stock.stock_code}`} className="text-cyan-400 hover:text-cyan-300 font-medium">
+                          {stock.stock_code}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-gray-200">{stock.name}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          stock.market === '上市' ? 'bg-blue-900/50 text-blue-300' :
+                          'bg-green-900/50 text-green-300'
+                        }`}>
+                          {stock.market}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-200">
+                        {stock.latest_indicators?.pe_ttm ? parseFloat(stock.latest_indicators.pe_ttm).toFixed(2) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-200">
+                        {stock.latest_indicators?.pb_ratio ? parseFloat(stock.latest_indicators.pb_ratio).toFixed(2) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-200">
+                        {stock.latest_indicators?.dividend_yield ? parseFloat(stock.latest_indicators.dividend_yield).toFixed(2) + '%' : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {stock.latest_indicators?.signal && (
+                          <span className={`px-2 py-1 rounded text-white text-xs font-medium ${
+                            stock.latest_indicators.signal === '低估' ? 'bg-green-600' :
+                            stock.latest_indicators.signal === '低價' ? 'bg-blue-600' :
+                            stock.latest_indicators.signal === '中等' ? 'bg-yellow-600' :
+                            stock.latest_indicators.signal === '過熱' ? 'bg-red-600' :
+                            'bg-gray-600'
+                          }`}>
+                            {stock.latest_indicators.signal}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-gray-400">
+              沒有找到符合條件的股票
+            </div>
+          )}
         </div>
       )}
     </div>

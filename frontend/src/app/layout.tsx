@@ -12,16 +12,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-TW">
-      <body className="antialiased">
-        <nav className="bg-primary-600 text-white shadow-lg">
+    <html lang="zh-TW" className="dark">
+      <body className="antialiased bg-[#0f0f0f] min-h-screen">
+        <nav className="bg-gray-900 border-b border-gray-800">
           <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between h-16">
-              <a href="/" className="text-xl font-bold">台股財報分析</a>
-              <div className="flex space-x-4">
-                <a href="/" className="hover:bg-primary-700 px-3 py-2 rounded">首頁</a>
-                <a href="/screener" className="hover:bg-primary-700 px-3 py-2 rounded">股票篩選</a>
-                <a href="/stocks" className="hover:bg-primary-700 px-3 py-2 rounded">股票列表</a>
+            <div className="flex items-center justify-between h-14">
+              <a href="/" className="text-xl font-bold text-cyan-400">台股財報分析</a>
+              <div className="flex space-x-1">
+                <a href="/" className="hover:bg-gray-800 px-3 py-2 rounded text-gray-300 hover:text-white transition-colors">首頁</a>
+                <a href="/screener" className="hover:bg-gray-800 px-3 py-2 rounded text-gray-300 hover:text-white transition-colors">股票篩選</a>
+                <a href="/stocks" className="hover:bg-gray-800 px-3 py-2 rounded text-gray-300 hover:text-white transition-colors">股票列表</a>
               </div>
             </div>
           </div>
@@ -29,6 +29,9 @@ export default function RootLayout({
         <main className="max-w-7xl mx-auto px-4 py-6">
           {children}
         </main>
+        <footer className="border-t border-gray-800 mt-12 py-6 text-center text-gray-500 text-sm">
+          台股財報分析系統 © {new Date().getFullYear()} | 數據來源：台灣證交所
+        </footer>
       </body>
     </html>
   );
